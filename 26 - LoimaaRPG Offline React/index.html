@@ -1,286 +1,906 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LoimaaRPG — Offline GM</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        background-color: #08090d;
+        color: #f3f4f6;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background-color: #08090d;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+        color: inherit;
+      }
+
+      #root {
+        min-height: 100vh;
+      }
+
+      .app {
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        padding: 24px 16px 40px;
+      }
+
+      .game-shell {
+        width: min(720px, 100%);
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .title-block {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .title {
+        margin: 0;
+        font-size: clamp(1.75rem, 2vw + 1rem, 2.4rem);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      .subtitle {
+        margin: 0;
+        font-size: 0.95rem;
+        opacity: 0.7;
+      }
+
+      .seed-text {
+        margin: 0;
+        font-size: 0.8rem;
+        opacity: 0.65;
+      }
+
+      .panel {
+        background: rgba(17, 24, 39, 0.78);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 20px;
+        padding: 18px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(6px);
+      }
+
+      .panel.tight {
+        padding: 14px 18px;
+      }
+
+      .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: rgba(30, 41, 59, 0.9);
+        color: #e0e7ff;
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+      }
+
+      .btn:hover:not(:disabled) {
+        background: rgba(59, 130, 246, 0.35);
+        border-color: rgba(96, 165, 250, 0.55);
+        box-shadow: 0 10px 22px rgba(37, 99, 235, 0.26);
+        transform: translateY(-1px);
+      }
+
+      .btn:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      .btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .btn.primary {
+        background: linear-gradient(120deg, #0f766e, #2563eb);
+        border-color: rgba(59, 130, 246, 0.55);
+        color: #f9fafb;
+      }
+
+      .btn.accent {
+        background: rgba(55, 65, 81, 0.92);
+      }
+
+      .controls {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .field-label {
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        opacity: 0.65;
+      }
+
+      .input,
+      .select,
+      .textarea {
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 14px;
+        padding: 10px 14px;
+        color: inherit;
+        outline: none;
+        transition: border-color 0.16s ease, box-shadow 0.16s ease;
+      }
+
+      .input:focus,
+      .select:focus,
+      .textarea:focus {
+        border-color: rgba(129, 140, 248, 0.75);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+      }
+
+      .range {
+        width: 100%;
+        accent-color: #6366f1;
+      }
+
+      .history-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .history {
+        max-height: 54vh;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding-right: 4px;
+      }
+
+      .history::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .history::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.35);
+        border-radius: 999px;
+      }
+
+      .empty-state {
+        font-size: 0.95rem;
+        opacity: 0.65;
+        text-align: center;
+        padding: 26px 10px;
+      }
+
+      .bubble-row {
+        display: flex;
+      }
+
+      .bubble-row.assistant,
+      .bubble-row.system {
+        justify-content: flex-start;
+      }
+
+      .bubble-row.user {
+        justify-content: flex-end;
+      }
+
+      .bubble {
+        max-width: 90%;
+        border-radius: 18px;
+        border: 1px solid;
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .bubble.assistant {
+        background: rgba(30, 41, 59, 0.9);
+        border-color: rgba(148, 163, 184, 0.32);
+      }
+
+      .bubble.system {
+        background: rgba(15, 23, 42, 0.86);
+        border-color: rgba(148, 163, 184, 0.45);
+      }
+
+      .bubble.user {
+        background: rgba(67, 56, 202, 0.9);
+        border-color: rgba(99, 102, 241, 0.65);
+      }
+
+      .bubble-label {
+        font-size: 0.62rem;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        opacity: 0.6;
+      }
+
+      .bubble-content {
+        margin: 0;
+        font-size: 0.92rem;
+        white-space: pre-wrap;
+        line-height: 1.55;
+      }
+
+      .turn-card {
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: rgba(2, 6, 23, 0.65);
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .turn-text {
+        margin: 0;
+        font-size: 1rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
+      }
+
+      .meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        font-size: 0.78rem;
+        opacity: 0.75;
+      }
+
+      .turn-options {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      @media (min-width: 540px) {
+        .turn-options {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      .choice-btn {
+        text-align: left;
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        background: rgba(30, 41, 59, 0.92);
+        color: inherit;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        cursor: pointer;
+        transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+      }
+
+      .choice-btn:hover:not(:disabled) {
+        background: rgba(37, 99, 235, 0.35);
+        border-color: rgba(99, 102, 241, 0.55);
+        transform: translateY(-1px);
+      }
+
+      .choice-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .status {
+        font-size: 0.82rem;
+        opacity: 0.7;
+      }
+
+      .tests-title {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .badge {
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .badge.ok {
+        background: rgba(16, 185, 129, 0.22);
+        color: #6ee7b7;
+        border: 1px solid rgba(16, 185, 129, 0.4);
+      }
+
+      .badge.fail {
+        background: rgba(248, 113, 113, 0.18);
+        color: #fca5a5;
+        border: 1px solid rgba(248, 113, 113, 0.35);
+      }
+
+      .tests-list {
+        list-style: none;
+        margin: 14px 0 0 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 0.92rem;
+      }
+
+      .tests-list li {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(15, 23, 42, 0.85);
+      }
+
+      .tests-list li.ok {
+        border-color: rgba(16, 185, 129, 0.35);
+        color: #bbf7d0;
+      }
+
+      .tests-list li.fail {
+        border-color: rgba(248, 113, 113, 0.35);
+        color: #fecaca;
+      }
+
+      .test-detail {
+        font-size: 0.78rem;
+        opacity: 0.75;
+      }
+
+      .test-summary {
+        margin-top: 12px;
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
+
+      .test-summary.ok {
+        color: #6ee7b7;
+      }
+
+      .test-summary.fail {
+        color: #fca5a5;
+      }
+    </style>
   </head>
-  <body class="bg-neutral-950 text-neutral-100 min-h-screen">
+  <body>
     <div id="root"></div>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script>
+      (function () {
+        const { useEffect, useMemo, useRef, useState } = React;
+        const h = React.createElement;
 
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+        function LoimaaRPG() {
+          const [seed, setSeed] = useState(function () {
+            return String(Math.floor(Math.random() * 1e9));
+          });
+          const [contentMode, setContentMode] = useState("gritty");
+          const [temperature, setTemperature] = useState(0.9);
+          const [messages, setMessages] = useState([]);
+          const [turn, setTurn] = useState(null);
+          const [busy, setBusy] = useState(false);
+          const [tests, setTests] = useState(null);
+          const customInputRef = useRef(null);
+          const scrollRef = useRef(null);
 
-    <script type="text/babel">
-      const { useEffect, useMemo, useRef, useState } = React;
+          useEffect(function () {
+            const node = scrollRef.current;
+            if (!node) return;
+            node.scrollTo({ top: node.scrollHeight, behavior: "smooth" });
+          }, [messages, turn]);
 
-      function LoimaaRPG() {
-        const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e9).toString());
-        const [contentMode, setContentMode] = useState("gritty");
-        const [temperature, setTemperature] = useState(0.9);
-        const [messages, setMessages] = useState([]);
-        const [turn, setTurn] = useState(null);
-        const [busy, setBusy] = useState(false);
-        const [tests, setTests] = useState(null);
-        const customInputRef = useRef(null);
-        const scrollRef = useRef(null);
+          const systemPrompt = useMemo(
+            function () {
+              return offlineSystemPrompt({ contentMode: contentMode, seed: seed });
+            },
+            [contentMode, seed]
+          );
 
-        useEffect(() => {
-          if (scrollRef.current) {
-            scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+          function handleNewSeed() {
+            setSeed(String(Math.floor(Math.random() * 1e9)));
           }
-        }, [turn, messages]);
 
-        const systemPrompt = useMemo(() => offlineSystemPrompt({ contentMode, seed }), [contentMode, seed]);
-
-        function startGame() {
-          setBusy(true);
-          const baseMessages = [{ role: "system", content: systemPrompt }];
-          const t = localGMRespond({ seed, messages: [], playerInput: "/start", temperature });
-          setTurn(t);
-          setMessages([...baseMessages, { role: "assistant", content: stringifyTurn(t) }]);
-          setBusy(false);
-        }
-
-        function advanceWith(playerInput) {
-          setBusy(true);
-          const newMessages = [...messages, { role: "user", content: `PLAYER_ACTION: ${playerInput}` }];
-          const t = localGMRespond({ seed, messages: newMessages, playerInput, temperature });
-          setTurn(t);
-          setMessages([...newMessages, { role: "assistant", content: stringifyTurn(t) }]);
-          setBusy(false);
-        }
-
-        function onOptionClick(opt) {
-          advanceWith(opt);
-        }
-
-        function onCustomSubmit(e) {
-          e.preventDefault();
-          const value = customInputRef.current ? customInputRef.current.value.trim() : "";
-          if (!value) return;
-          if (customInputRef.current) {
-            customInputRef.current.value = "";
+          function startGame() {
+            setBusy(true);
+            const systemMessage = { role: "system", content: systemPrompt };
+            const nextTurn = localGMRespond({ seed: seed, messages: [], playerInput: "/start", temperature: temperature });
+            const assistantMessage = { role: "assistant", content: stringifyTurn(nextTurn) };
+            setMessages([systemMessage, assistantMessage]);
+            setTurn(nextTurn);
+            setBusy(false);
           }
-          advanceWith(value);
-        }
 
-        function runTests() {
-          const results = [];
-          const push = (name, fn) => {
-            try {
-              fn();
-              results.push({ name, ok: true });
-            } catch (err) {
-              results.push({ name, ok: false, details: String((err && err.message) || err) });
+          function advanceWith(playerInput) {
+            if (!playerInput || busy) {
+              return;
             }
-          };
+            setBusy(true);
+            setMessages(function (prevMessages) {
+              const historyWithPlayer = prevMessages.concat({ role: "user", content: "PLAYER_ACTION: " + playerInput });
+              let nextTurn;
+              try {
+                nextTurn = localGMRespond({
+                  seed: seed,
+                  messages: historyWithPlayer,
+                  playerInput: playerInput,
+                  temperature: temperature,
+                });
+              } catch (error) {
+                setBusy(false);
+                throw error;
+              }
+              setTurn(nextTurn);
+              setBusy(false);
+              return historyWithPlayer.concat({ role: "assistant", content: stringifyTurn(nextTurn) });
+            });
+          }
 
-          push("stringifyTurn/contains narration", () => {
-            const sample = { narration: "X", options: ["a", "b"], meta: { danger: 3 } };
-            const s = stringifyTurn(sample);
-            if (!s.includes("X")) throw new Error("stringify missing narration");
-          });
+          function handleOptionClick(option) {
+            advanceWith(option);
+          }
 
-          push("stringifyTurn/bullet count", () => {
-            const sample = { narration: "N", options: ["A", "B", "C"] };
-            const s = stringifyTurn(sample);
-            const bullets = (s.match(/\n- /g) || []).length;
-            if (bullets !== sample.options.length) throw new Error(`bullet mismatch: ${bullets} != ${sample.options.length}`);
-          });
+          function handleCustomSubmit(event) {
+            event.preventDefault();
+            const input = customInputRef.current;
+            if (!input) return;
+            const value = input.value.trim();
+            if (!value) return;
+            input.value = "";
+            advanceWith(value);
+          }
 
-          push("localGMRespond/has options", () => {
-            const t = localGMRespond({ seed: "1", messages: [], playerInput: "/start", temperature: 0.5 });
-            if (!t || !Array.isArray(t.options) || t.options.length === 0) throw new Error("no options");
-          });
-
-          push("offlineSystemPrompt/contains Loimaa", () => {
-            const sp = offlineSystemPrompt({ contentMode: "gritty", seed: "99" });
-            if (!sp.includes("Loimaa")) throw new Error("missing Loimaa");
-          });
-
-          push("hashCode/deterministic", () => {
-            const a = hashCode("abc");
-            const b = hashCode("abc");
-            const c = hashCode("abd");
-            if (a !== b) throw new Error("not deterministic");
-            if (a === c) throw new Error("no variance");
-          });
-
-          push("localGMRespond/temperature variance (best-effort)", () => {
-            const messageHistory = [];
-            const t1 = localGMRespond({ seed: "k", messages: messageHistory, playerInput: "look", temperature: 0.1 });
-            const t2 = localGMRespond({ seed: "k", messages: messageHistory, playerInput: "look", temperature: 1.7 });
-            if (t1.narration === t2.narration && t1.options.join("|") === t2.options.join("|")) {
-              throw new Error("no variance with different temperature");
+          function runTests() {
+            const results = [];
+            function push(name, fn) {
+              try {
+                fn();
+                results.push({ name: name, ok: true });
+              } catch (err) {
+                const message = err && err.message ? err.message : String(err);
+                results.push({ name: name, ok: false, details: message });
+              }
             }
+
+            push("stringifyTurn/contains narration", function () {
+              const sample = { narration: "X", options: ["a", "b"], meta: { danger: 3 } };
+              const s = stringifyTurn(sample);
+              if (s.indexOf("X") === -1) {
+                throw new Error("stringify missing narration");
+              }
+            });
+
+            push("stringifyTurn/bullet count", function () {
+              const sample = { narration: "N", options: ["A", "B", "C"] };
+              const s = stringifyTurn(sample);
+              const bullets = (s.match(/\n- /g) || []).length;
+              if (bullets !== sample.options.length) {
+                throw new Error("bullet mismatch: " + bullets + " != " + sample.options.length);
+              }
+            });
+
+            push("localGMRespond/has options", function () {
+              const t = localGMRespond({ seed: "1", messages: [], playerInput: "/start", temperature: 0.5 });
+              if (!t || !Array.isArray(t.options) || t.options.length === 0) {
+                throw new Error("no options");
+              }
+            });
+
+            push("offlineSystemPrompt/contains Loimaa", function () {
+              const sp = offlineSystemPrompt({ contentMode: "gritty", seed: "99" });
+              if (sp.indexOf("Loimaa") === -1) {
+                throw new Error("missing Loimaa");
+              }
+            });
+
+            push("hashCode/deterministic", function () {
+              const a = hashCode("abc");
+              const b = hashCode("abc");
+              const c = hashCode("abd");
+              if (a !== b) {
+                throw new Error("not deterministic");
+              }
+              if (a === c) {
+                throw new Error("no variance");
+              }
+            });
+
+            push("localGMRespond/temperature variance (best-effort)", function () {
+              const messageHistory = [];
+              const t1 = localGMRespond({ seed: "k", messages: messageHistory, playerInput: "look", temperature: 0.1 });
+              const t2 = localGMRespond({ seed: "k", messages: messageHistory, playerInput: "look", temperature: 1.7 });
+              if (t1.narration === t2.narration && t1.options.join("|") === t2.options.join("|")) {
+                throw new Error("no variance with different temperature");
+              }
+            });
+
+            setTests(results);
+          }
+
+          const testsPassed = tests ? tests.every(function (item) { return item.ok; }) : null;
+
+          return h(
+            "div",
+            { className: "app" },
+            h(
+              "div",
+              { className: "game-shell" },
+              h(
+                "div",
+                { className: "title-block" },
+                h("h1", { className: "title" }, "LoimaaRPG — Offline GM"),
+                h("p", { className: "subtitle" }, "Peli toimii ilman verkkoa tai API-avainta."),
+                h("p", { className: "seed-text" }, "seed: ", h("strong", null, seed))
+              ),
+              h(
+                "div",
+                { className: "panel tight" },
+                h(
+                  "div",
+                  { className: "buttons" },
+                  h(
+                    "button",
+                    { className: "btn accent", onClick: handleNewSeed, type: "button" },
+                    "Uusi seed"
+                  ),
+                  h(
+                    "button",
+                    { className: "btn primary", onClick: startGame, type: "button", disabled: busy },
+                    "Aloita peli"
+                  ),
+                  h(
+                    "button",
+                    { className: "btn", onClick: runTests, type: "button" },
+                    "Suorita testit"
+                  )
+                ),
+                busy ? h("div", { className: "status" }, "GM miettii...") : null
+              ),
+              h(
+                "div",
+                { className: "panel" },
+                h(
+                  "div",
+                  { className: "controls" },
+                  h(
+                    "div",
+                    { className: "control-group" },
+                    h(
+                      "label",
+                      { className: "field" },
+                      h("span", { className: "field-label" }, "Sisältötaso"),
+                      h(
+                        "select",
+                        {
+                          className: "select",
+                          value: contentMode,
+                          onChange: function (event) {
+                            setContentMode(event.target.value);
+                          },
+                        },
+                        h("option", { value: "soft" }, "Pehmeä"),
+                        h("option", { value: "gritty" }, "Kova & synkkä")
+                      )
+                    ),
+                    h(
+                      "label",
+                      { className: "field" },
+                      h("span", { className: "field-label" }, "Lämpötila (satunnaisuus)"),
+                      h("input", {
+                        type: "range",
+                        min: "0",
+                        max: "2",
+                        step: "0.1",
+                        value: temperature,
+                        className: "range",
+                        onChange: function (event) {
+                          setTemperature(parseFloat(event.target.value));
+                        },
+                      }),
+                      h(
+                        "span",
+                        { className: "field-label" },
+                        "Nykyinen: ",
+                        temperature.toFixed(1)
+                      )
+                    )
+                  ),
+                  h(
+                    "form",
+                    { className: "control-group", onSubmit: handleCustomSubmit },
+                    h("span", { className: "field-label" }, "Oma toiminto"),
+                    h("input", {
+                      ref: customInputRef,
+                      className: "input",
+                      placeholder: "kirjoita oma valinta (esim. 'tutki varastoa')",
+                      disabled: busy || !turn,
+                    }),
+                    h(
+                      "button",
+                      { className: "btn primary", type: "submit", disabled: busy || !turn },
+                      "Lähetä"
+                    )
+                  )
+                )
+              ),
+              h(
+                "div",
+                { className: "panel" },
+                h(
+                  "div",
+                  { className: "history-wrapper" },
+                  h(
+                    "div",
+                    {
+                      className: "history",
+                      ref: scrollRef,
+                    },
+                    messages.length === 0 && !turn
+                      ? h("div", { className: "empty-state" }, "Paina \"Aloita peli\" aloittaaksesi seikkailun.")
+                      : null,
+                    messages.map(function (m, idx) {
+                      return h(MessageBubble, { key: idx, role: m.role, content: m.content });
+                    }),
+                    turn
+                      ? h(
+                          "div",
+                          { className: "turn-card" },
+                          h("p", { className: "turn-text" }, turn.narration),
+                          turn.meta
+                            ? h(
+                                "div",
+                                { className: "meta-row" },
+                                typeof turn.meta.danger === "number"
+                                  ? h("span", null, "Vaara: ", turn.meta.danger, "/10")
+                                  : null,
+                                typeof turn.meta.hope === "number"
+                                  ? h("span", null, "Toivo: ", turn.meta.hope, "/10")
+                                  : null,
+                                turn.meta.npc ? h("span", null, "Kohtaat: ", turn.meta.npc) : null
+                              )
+                            : null,
+                          h(
+                            "div",
+                            { className: "turn-options" },
+                            turn.options.map(function (opt, index) {
+                              return h(
+                                "button",
+                                {
+                                  key: opt + index,
+                                  className: "choice-btn",
+                                  onClick: function () {
+                                    handleOptionClick(opt);
+                                  },
+                                  type: "button",
+                                  disabled: busy,
+                                },
+                                opt
+                              );
+                            })
+                          )
+                        )
+                      : null
+                  )
+                )
+              ),
+              tests
+                ? h(
+                    "div",
+                    { className: "panel" },
+                    h(
+                      "h2",
+                      { className: "tests-title" },
+                      "Testit",
+                      testsPassed !== null
+                        ? h("span", { className: "badge " + (testsPassed ? "ok" : "fail") }, testsPassed ? "OK" : "HUOM")
+                        : null
+                    ),
+                    h(
+                      "ul",
+                      { className: "tests-list" },
+                      tests.map(function (result) {
+                        return h(
+                          "li",
+                          { key: result.name, className: result.ok ? "ok" : "fail" },
+                          h("span", null, result.name),
+                          result.ok
+                            ? h("span", { className: "test-detail" }, "✓ Läpäisty")
+                            : h(
+                                "span",
+                                { className: "test-detail" },
+                                "✗ ",
+                                result.details
+                              )
+                        );
+                      })
+                    ),
+                    testsPassed !== null
+                      ? h(
+                          "div",
+                          { className: "test-summary " + (testsPassed ? "ok" : "fail") },
+                          testsPassed
+                            ? "Kaikki testit läpäistiin."
+                            : "Osa testeistä epäonnistui — tarkista virheilmoitukset."
+                        )
+                      : null
+                  )
+                : null
+            )
+          );
+        }
+
+        function MessageBubble(props) {
+          const role = props.role || "assistant";
+          const rowClass =
+            "bubble-row " + (role === "user" ? "user" : role === "system" ? "system" : "assistant");
+          const bubbleClass =
+            "bubble " + (role === "user" ? "user" : role === "system" ? "system" : "assistant");
+          const label = role === "user" ? "Sinä" : role === "system" ? "Järjestelmä" : "GM";
+          return h(
+            "div",
+            { className: rowClass },
+            h(
+              "div",
+              { className: bubbleClass },
+              h("span", { className: "bubble-label" }, label),
+              h("pre", { className: "bubble-content" }, props.content)
+            )
+          );
+        }
+
+        function offlineSystemPrompt(params) {
+          return (
+            "Offline Game Master — Loimaa. Mode: " + params.contentMode + ". Seed: " + params.seed + "."
+          );
+        }
+
+        function stringifyTurn(t) {
+          const bullets = t.options.map(function (o) {
+            return "- " + o;
           });
-
-          setTests(results);
+          return "NARRATION:\n" + t.narration + "\n\nOPTIONS:\n" + bullets.join("\n");
         }
 
-        return (
-          <div className="min-h-screen w-full bg-neutral-950 text-neutral-100 p-4 md:p-8">
-            <div className="max-w-xl mx-auto space-y-3">
-              <h1 className="text-2xl font-bold">LoimaaRPG — Offline GM</h1>
-              <div className="text-sm opacity-70">seed: {seed}</div>
+        function localGMRespond(args) {
+          const hValue = Math.abs(
+            hashCode(args.seed + JSON.stringify(args.messages) + args.playerInput + String(args.temperature))
+          );
+          const places = [
+            "**Bussiasema**",
+            "**Vanha varikko**",
+            "**Silta**",
+            "**K-marketin takapiha**",
+            "**Säiliöpiha**",
+            "**Rautatieaitio**",
+          ];
+          const npcs = [
+            "Satu",
+            "Jykä",
+            "Varikkomestari",
+            "Järjestyksenvalvoja",
+            "Sossun Mikko",
+            "Mimmi",
+          ];
+          const place = places[hValue % places.length];
+          const npc = npcs[hValue % npcs.length];
+          const danger = hValue % 10;
+          const hope = 9 - (hValue % 10);
 
-              <div className="flex gap-2">
-                <button onClick={() => setSeed(Math.floor(Math.random() * 1e9).toString())} className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700">
-                  Uusi seed
-                </button>
-                <button onClick={startGame} disabled={busy} className="px-3 py-2 rounded-xl bg-emerald-700 disabled:opacity-50">
-                  Aloita peli
-                </button>
-                <button onClick={runTests} className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700">
-                  Suorita testit
-                </button>
-              </div>
+          const grittyTemplates = [
+            place +
+              ": sade kiiltää asfaltilla. " +
+              npc +
+              " polttaa vanhaa tupakkaa ja vilkaisee sinuun. Hapen hinta on laskenut; voit joko jutella tai ottaa riskejä.",
+            place +
+              ": neonin loiste sotkee kasvojesi varjot. Äänet liikkuvat metallin takaa. " +
+              npc +
+              " kuiskaa: 'Älä jää tähän', mutta päätös on sinun.",
+            place +
+              ": öljyinen kitka varoittaa; jotain liikkuu säiliöiden takana. " +
+              npc +
+              " asettaa katseensa taskuusi.",
+          ];
 
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-3 space-y-3">
-                <div className="text-sm space-y-2">
-                  <div>
-                    <label className="block text-xs opacity-70 mb-1">Sisältötaso</label>
-                    <select className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700" value={contentMode} onChange={(e) => setContentMode(e.target.value)}>
-                      <option value="soft">Pehmeä</option>
-                      <option value="gritty">Kova &amp; synkkä</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs opacity-70 mb-1">Lämpötila (satunnaisuus)</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value={temperature}
-                      onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                      className="w-full accent-indigo-500"
-                    />
-                    <div className="text-xs opacity-70 mt-1">Nykyinen: {temperature.toFixed(1)}</div>
-                  </div>
-                </div>
+          const softTemplates = [
+            place +
+              ": kylmä tuuli saa sinut nykimään takkia. " +
+              npc +
+              " hymyilee väkinäisesti ja tarjoaa kahvin. Voit jutella tai lähteä hakemaan rauhaa.",
+            place +
+              ": hiljaisuus on rauhoittava. " +
+              npc +
+              " näyttää uupuneelta mutta rehelliseltä. Keskustelu voi avata ovia.",
+            place + ": hento valo valaisee lattiaa. Voit etsiä merkkejä tai siirtyä syrjemmälle.",
+          ];
 
-                <form onSubmit={onCustomSubmit} className="space-y-2">
-                  <label className="text-xs uppercase tracking-wider opacity-70">Oma toiminto</label>
-                  <input ref={customInputRef} className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 outline-none" placeholder="kirjoita oma valinta (esim. 'tutki varastoa')" />
-                  <button type="submit" disabled={busy} className="w-full px-3 py-2 rounded-xl bg-indigo-700 disabled:opacity-50">
-                    Lähetä
-                  </button>
-                </form>
-              </div>
+          var pool;
+          if (args.temperature > 1.3) {
+            pool = grittyTemplates.concat(softTemplates).reverse();
+          } else if (args.temperature > 0.8) {
+            pool = grittyTemplates.slice();
+          } else {
+            pool = softTemplates.slice();
+          }
 
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-3">
-                <div ref={scrollRef} className="h-[48vh] overflow-y-auto space-y-2">
-                  {messages.map((m, idx) => (
-                    <MessageBubble key={idx} role={m.role} content={m.content} />
-                  ))}
-                  {turn && (
-                    <div className="rounded-xl bg-neutral-800/50 p-3 border border-neutral-700">
-                      <p className="whitespace-pre-wrap leading-relaxed">{turn.narration}</p>
-                      {turn.meta && (
-                        <div className="flex gap-2 mt-2 text-xs opacity-70">
-                          {typeof turn.meta.danger === "number" && <span>Vaara: {turn.meta.danger}/10</span>}
-                          {typeof turn.meta.hope === "number" && <span>Toivo: {turn.meta.hope}/10</span>}
-                          {turn.meta.npc && <span>Kohtaat: {turn.meta.npc}</span>}
-                        </div>
-                      )}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
-                        {turn.options.map((opt, i) => (
-                          <button key={i} onClick={() => onOptionClick(opt)} className="text-left px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 hover:bg-neutral-700">
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+          const narration = pool[hValue % pool.length];
+          const verbs = [
+            "Juttele",
+            "Piiloudu",
+            "Tutki varusteita",
+            "Lähde juoksemaan",
+            "Tarjoa apua",
+            "Ryömi lähemmäs",
+            "Etsi lähistöllä olevat ihmiset",
+          ];
+          const count = 3 + (hValue % 3);
+          const options = [];
+          for (var i = 0; i < count; i++) {
+            options.push(verbs[(hValue + i) % verbs.length]);
+          }
 
-              {tests && (
-                <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-3 space-y-2">
-                  <h2 className="text-lg font-semibold">Testit</h2>
-                  <ul className="space-y-1 text-sm">
-                    {tests.map((result) => (
-                      <li key={result.name} className={result.ok ? "text-emerald-400" : "text-rose-400"}>
-                        <span className="font-medium">{result.name}</span>
-                        {result.ok ? <span className="ml-2">✓</span> : <span className="ml-2">✗ {result.details}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      }
-
-      function MessageBubble({ role, content }) {
-        const isUser = role === "user";
-        return (
-          <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-            <div className={`${isUser ? "bg-indigo-700" : "bg-neutral-800/80"} max-w-[90%] md:max-w-[75%] rounded-2xl px-3 py-2 border ${isUser ? "border-indigo-600" : "border-neutral-700"}`}>
-              <pre className="whitespace-pre-wrap text-sm leading-relaxed">{content}</pre>
-            </div>
-          </div>
-        );
-      }
-
-      function offlineSystemPrompt({ contentMode, seed }) {
-        return `Offline Game Master — Loimaa. Mode: ${contentMode}. Seed: ${seed}.`;
-      }
-
-      function stringifyTurn(t) {
-        const bullets = t.options.map((o) => `- ${o}`).join("\n");
-        return `NARRATION:\n${t.narration}\n\nOPTIONS:\n${bullets}`;
-      }
-
-      function localGMRespond({ seed, messages, playerInput, temperature }) {
-        const h = Math.abs(hashCode(seed + JSON.stringify(messages) + playerInput + String(temperature)));
-        const places = ["**Bussiasema**", "**Vanha varikko**", "**Silta**", "**K-marketin takapiha**", "**Säiliöpiha**", "**Rautatieaitio**"];
-        const npcs = ["Satu", "Jykä", "Varikkomestari", "Järjestyksenvalvoja", "Sossun Mikko", "Mimmi"];
-        const p = places[h % places.length];
-        const n = npcs[h % npcs.length];
-        const danger = h % 10;
-        const hope = 9 - (h % 10);
-
-        const grittyTemplates = [
-          `${p}: sade kiiltää asfaltilla. ${n} polttaa vanhaa tupakkaa ja vilkaisee sinuun. Hapen hinta on laskenut; voit joko jutella tai ottaa riskejä.`,
-          `${p}: neonin loiste sotkee kasvojesi varjot. Äänet liikkuvat metallin takaa. ${n} kuiskaa: 'Älä jää tähän', mutta päätös on sinun.`,
-          `${p}: öljyinen kitka varoittaa; jotain liikkuu säiliöiden takana. ${n} asettaa katseensa taskuusi.`,
-        ];
-
-        const softTemplates = [
-          `${p}: kylmä tuuli saa sinut nykimään takkia. ${n} hymyilee väkinäisesti ja tarjoaa kahvin. Voit jutella tai lähteä hakemaan rauhaa.`,
-          `${p}: hiljaisuus on rauhoittava. ${n} näyttää uupuneelta mutta rehelliseltä. Keskustelu voi avata ovia.`,
-          `${p}: hento valo valaisee lattiaa. Voit etsiä merkkejä tai siirtyä syrjemmälle.`,
-        ];
-
-        const pool = temperature > 1.3 ? grittyTemplates.concat(softTemplates).reverse() : temperature > 0.8 ? grittyTemplates : softTemplates;
-        const narration = pool[h % pool.length];
-
-        const verbs = ["Juttele", "Piiloudu", "Tutki varusteita", "Lähde juoksemaan", "Tarjoa apua", "Ryömi lähemmäs", "Etsi lähistöllä olevat ihmiset"];
-        const options = [];
-        const count = 3 + (h % 3);
-        for (let i = 0; i < count; i++) {
-          options.push(verbs[(h + i) % verbs.length]);
+          return { narration: narration, options: options, meta: { danger: danger, hope: hope, npc: npc } };
         }
 
-        return { narration, options, meta: { danger, hope, npc: n } };
-      }
-
-      function hashCode(s) {
-        let h = 0;
-        for (let i = 0; i < s.length; i++) {
-          h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+        function hashCode(value) {
+          var hash = 0;
+          for (var i = 0; i < value.length; i++) {
+            hash = (Math.imul(31, hash) + value.charCodeAt(i)) | 0;
+          }
+          return hash;
         }
-        return h;
-      }
 
-      const root = ReactDOM.createRoot(document.getElementById("root"));
-      root.render(<LoimaaRPG />);
+        const rootElement = document.getElementById("root");
+        ReactDOM.createRoot(rootElement).render(h(LoimaaRPG));
+      })();
     </script>
   </body>
 </html>
