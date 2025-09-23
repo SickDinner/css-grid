@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LoimaaRPG — Offline GM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-neutral-950 text-neutral-100 min-h-screen">
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+      const { useEffect, useMemo, useRef, useState } = React;
+
+      function LoimaaRPG() {
+        const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e9).toString());
+        const [contentMode, setContentMode] = useState("gritty");
+        const [temperature, setTemperature] = useState(0.9);
+        const [messages, setMessages] = useState([]);
+        const [turn, setTurn] = useState(null);
+        const [busy, setBusy] = useState(false);
+        const [tests, setTests] = useState(null);
+        const customInputRef = useRef(null);
+        const scrollRef = useRef(null);
+
+        useEffect(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+          }
+        }, [turn, messages]);
+
+        const systemPrompt = useMemo(() => offlineSystemPrompt({ contentMode, seed }), [contentMode, seed]);
+
+        function startGame() {
+          setBusy(true);
+          const baseMessages = [{ role: "system", content: systemPrompt }];
+          const t = localGMRespond({ seed, messages: [], playerInput: "/start", temperature });
+          setTurn(t);
+          setMessages([...baseMessages, { role: "assistant", content: stringifyTurn(t) }]);
+          setBusy(false);
+        }
+
+        function advanceWith(playerInput) {
+          setBusy(true);
+          const newMessages = [...messages, { role: "user", content: `PLAYER_ACTION: ${playerInput}` }];
+          const t = localGMRespond({ seed, messages: newMessages, playerInput, temperature });
+          setTurn(t);
+          setMessages([...newMessages, { role: "assistant", content: stringifyTurn(t) }]);
+          setBusy(false);
+        }
+
+        function onOptionClick(opt) {
+          advanceWith(opt);
+        }
+
+        function onCustomSubmit(e) {
+          e.preventDefault();
+          const value = customInputRef.current ? customInputRef.current.value.trim() : "";
+          if (!value) return;
+          if (customInputRef.current) {
+            customInputRef.current.value = "";
+          }
+          advanceWith(value);
+        }
+
+        function runTests() {
+          const results = [];
+          const push = (name, fn) => {
+            try {
+              fn();
+              results.push({ name, ok: true });
+            } catch (err) {
+              results.push({ name, ok: false, details: String((err && err.message) || err) });
+            }
+          };
+
+          push("stringifyTurn/contains narration", () => {
+            const sample = { narration: "X", options: ["a", "b"], meta: { danger: 3 } };
+            const s = stringifyTurn(sample);
+            if (!s.includes("X")) throw new Error("stringify missing narration");
+          });
+
+          push("stringifyTurn/bullet count", () => {
+            const sample = { narration: "N", options: ["A", "B", "C"] };
+            const s = stringifyTurn(sample);
+            const bullets = (s.match(/\n- /g) || []).length;
+            if (bullets !== sample.options.length) throw new Error(`bullet mismatch: ${bullets} != ${sample.options.length}`);
+          });
+
+          push("localGMRespond/has options", () => {
+            const t = localGMRespond({ seed: "1", messages: [], playerInput: "/start", temperature: 0.5 });
+            if (!t || !Array.isArray(t.options) || t.options.length === 0) throw new Error("no options");
+          });
+
+          push("offlineSystemPrompt/contains Loimaa", () => {
+            const sp = offlineSystemPrompt({ contentMode: "gritty", seed: "99" });
+            if (!sp.includes("Loimaa")) throw new Error("missing Loimaa");
+          });
+
+          push("hashCode/deterministic", () => {
+            const a = hashCode("abc");
+            const b = hashCode("abc");
+            const c = hashCode("abd");
+            if (a !== b) throw new Error("not deterministic");
+            if (a === c) throw new Error("no variance");
+          });
+
+          push("localGMRespond/temperature variance (best-effort)", () => {
+            const messageHistory = [];
+            const t1 = localGMRespond({ seed: "k", messages: messageHistory, playerInput: "look", temperature: 0.1 });
+            const t2 = localGMRespond({ seed: "k", messages: messageHistory, playerInput: "look", temperature: 1.7 });
+            if (t1.narration === t2.narration && t1.options.join("|") === t2.options.join("|")) {
+              throw new Error("no variance with different temperature");
+            }
+          });
+
+          setTests(results);
+        }
+
+        return (
+          <div className="min-h-screen w-full bg-neutral-950 text-neutral-100 p-4 md:p-8">
+            <div className="max-w-xl mx-auto space-y-3">
+              <h1 className="text-2xl font-bold">LoimaaRPG — Offline GM</h1>
+              <div className="text-sm opacity-70">seed: {seed}</div>
+
+              <div className="flex gap-2">
+                <button onClick={() => setSeed(Math.floor(Math.random() * 1e9).toString())} className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700">
+                  Uusi seed
+                </button>
+                <button onClick={startGame} disabled={busy} className="px-3 py-2 rounded-xl bg-emerald-700 disabled:opacity-50">
+                  Aloita peli
+                </button>
+                <button onClick={runTests} className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700">
+                  Suorita testit
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-3 space-y-3">
+                <div className="text-sm space-y-2">
+                  <div>
+                    <label className="block text-xs opacity-70 mb-1">Sisältötaso</label>
+                    <select className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700" value={contentMode} onChange={(e) => setContentMode(e.target.value)}>
+                      <option value="soft">Pehmeä</option>
+                      <option value="gritty">Kova &amp; synkkä</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs opacity-70 mb-1">Lämpötila (satunnaisuus)</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={temperature}
+                      onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                      className="w-full accent-indigo-500"
+                    />
+                    <div className="text-xs opacity-70 mt-1">Nykyinen: {temperature.toFixed(1)}</div>
+                  </div>
+                </div>
+
+                <form onSubmit={onCustomSubmit} className="space-y-2">
+                  <label className="text-xs uppercase tracking-wider opacity-70">Oma toiminto</label>
+                  <input ref={customInputRef} className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 outline-none" placeholder="kirjoita oma valinta (esim. 'tutki varastoa')" />
+                  <button type="submit" disabled={busy} className="w-full px-3 py-2 rounded-xl bg-indigo-700 disabled:opacity-50">
+                    Lähetä
+                  </button>
+                </form>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-3">
+                <div ref={scrollRef} className="h-[48vh] overflow-y-auto space-y-2">
+                  {messages.map((m, idx) => (
+                    <MessageBubble key={idx} role={m.role} content={m.content} />
+                  ))}
+                  {turn && (
+                    <div className="rounded-xl bg-neutral-800/50 p-3 border border-neutral-700">
+                      <p className="whitespace-pre-wrap leading-relaxed">{turn.narration}</p>
+                      {turn.meta && (
+                        <div className="flex gap-2 mt-2 text-xs opacity-70">
+                          {typeof turn.meta.danger === "number" && <span>Vaara: {turn.meta.danger}/10</span>}
+                          {typeof turn.meta.hope === "number" && <span>Toivo: {turn.meta.hope}/10</span>}
+                          {turn.meta.npc && <span>Kohtaat: {turn.meta.npc}</span>}
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                        {turn.options.map((opt, i) => (
+                          <button key={i} onClick={() => onOptionClick(opt)} className="text-left px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 hover:bg-neutral-700">
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {tests && (
+                <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-3 space-y-2">
+                  <h2 className="text-lg font-semibold">Testit</h2>
+                  <ul className="space-y-1 text-sm">
+                    {tests.map((result) => (
+                      <li key={result.name} className={result.ok ? "text-emerald-400" : "text-rose-400"}>
+                        <span className="font-medium">{result.name}</span>
+                        {result.ok ? <span className="ml-2">✓</span> : <span className="ml-2">✗ {result.details}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      function MessageBubble({ role, content }) {
+        const isUser = role === "user";
+        return (
+          <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+            <div className={`${isUser ? "bg-indigo-700" : "bg-neutral-800/80"} max-w-[90%] md:max-w-[75%] rounded-2xl px-3 py-2 border ${isUser ? "border-indigo-600" : "border-neutral-700"}`}>
+              <pre className="whitespace-pre-wrap text-sm leading-relaxed">{content}</pre>
+            </div>
+          </div>
+        );
+      }
+
+      function offlineSystemPrompt({ contentMode, seed }) {
+        return `Offline Game Master — Loimaa. Mode: ${contentMode}. Seed: ${seed}.`;
+      }
+
+      function stringifyTurn(t) {
+        const bullets = t.options.map((o) => `- ${o}`).join("\n");
+        return `NARRATION:\n${t.narration}\n\nOPTIONS:\n${bullets}`;
+      }
+
+      function localGMRespond({ seed, messages, playerInput, temperature }) {
+        const h = Math.abs(hashCode(seed + JSON.stringify(messages) + playerInput + String(temperature)));
+        const places = ["**Bussiasema**", "**Vanha varikko**", "**Silta**", "**K-marketin takapiha**", "**Säiliöpiha**", "**Rautatieaitio**"];
+        const npcs = ["Satu", "Jykä", "Varikkomestari", "Järjestyksenvalvoja", "Sossun Mikko", "Mimmi"];
+        const p = places[h % places.length];
+        const n = npcs[h % npcs.length];
+        const danger = h % 10;
+        const hope = 9 - (h % 10);
+
+        const grittyTemplates = [
+          `${p}: sade kiiltää asfaltilla. ${n} polttaa vanhaa tupakkaa ja vilkaisee sinuun. Hapen hinta on laskenut; voit joko jutella tai ottaa riskejä.`,
+          `${p}: neonin loiste sotkee kasvojesi varjot. Äänet liikkuvat metallin takaa. ${n} kuiskaa: 'Älä jää tähän', mutta päätös on sinun.`,
+          `${p}: öljyinen kitka varoittaa; jotain liikkuu säiliöiden takana. ${n} asettaa katseensa taskuusi.`,
+        ];
+
+        const softTemplates = [
+          `${p}: kylmä tuuli saa sinut nykimään takkia. ${n} hymyilee väkinäisesti ja tarjoaa kahvin. Voit jutella tai lähteä hakemaan rauhaa.`,
+          `${p}: hiljaisuus on rauhoittava. ${n} näyttää uupuneelta mutta rehelliseltä. Keskustelu voi avata ovia.`,
+          `${p}: hento valo valaisee lattiaa. Voit etsiä merkkejä tai siirtyä syrjemmälle.`,
+        ];
+
+        const pool = temperature > 1.3 ? grittyTemplates.concat(softTemplates).reverse() : temperature > 0.8 ? grittyTemplates : softTemplates;
+        const narration = pool[h % pool.length];
+
+        const verbs = ["Juttele", "Piiloudu", "Tutki varusteita", "Lähde juoksemaan", "Tarjoa apua", "Ryömi lähemmäs", "Etsi lähistöllä olevat ihmiset"];
+        const options = [];
+        const count = 3 + (h % 3);
+        for (let i = 0; i < count; i++) {
+          options.push(verbs[(h + i) % verbs.length]);
+        }
+
+        return { narration, options, meta: { danger, hope, npc: n } };
+      }
+
+      function hashCode(s) {
+        let h = 0;
+        for (let i = 0; i < s.length; i++) {
+          h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+        }
+        return h;
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<LoimaaRPG />);
+    </script>
+  </body>
+</html>
