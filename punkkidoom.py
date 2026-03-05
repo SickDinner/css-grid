@@ -810,7 +810,8 @@ class PunkkidoomGame:
             command = input("taistelu> ").strip().lower()
             if not command:
                 command = "blast"
-            if command in {"blast", "shoot"}:
+            action, _, arg = command.partition(" ")
+            if action in {"blast", "shoot"}:
                 self.player.guard_timer = 0
                 target = room.alive_enemies()[0]
                 hit, log = self.player.attack(target, mode="blast")
@@ -818,14 +819,14 @@ class PunkkidoomGame:
                 if hit and not target.is_alive():
                     self.log(f"{target.name} rojahtaa neon-soralle!")
                     self.total_enemies -= 1
-            elif command == "slam":
+            elif action == "slam":
                 target = room.alive_enemies()[0]
                 hit, log = self.player.attack(target, mode="slam")
                 self.log(log)
                 if hit and not target.is_alive():
                     self.log(f"{target.name} sulaa moottoriöljyksi!")
                     self.total_enemies -= 1
-            elif command == "spray":
+            elif action == "spray":
                 targets = room.alive_enemies()
                 if not targets:
                     continue
@@ -840,26 +841,25 @@ class PunkkidoomGame:
                         self.total_enemies -= 1
                 if not hit_any:
                     self.log("Harmittava ohi - spray vain herättää pölyn.")
-            elif command == "howl":
+            elif action == "howl":
                 self.log(self.player.howl())
-            elif command == "guard":
+            elif action == "guard":
                 self.log(self.player.guard())
-            elif command.startswith("use"):
-                _, _, rest = command.partition(" ")
-                if not rest:
+            elif action == "use":
+                if not arg:
                     self.log("Mitä vedät?")
                     continue
-                if not self.consume_drug(rest):
+                if not self.consume_drug(arg):
                     continue
-            elif command == "status":
+            elif action == "status":
                 self.log(self.player.status_block())
                 continue
-            elif command == "help":
+            elif action == "help":
                 self.show_help()
                 continue
-            elif command == "run":
+            elif action == "run":
                 self.log("Yleisö buuaa - et pääse pakoon! Taistelun on päätyttävä.")
-            elif command == "quit":
+            elif action == "quit":
                 self.running = False
                 return
             else:

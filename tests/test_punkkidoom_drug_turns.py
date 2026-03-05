@@ -61,3 +61,24 @@ def test_combat_use_missing_drug_does_not_give_enemy_free_turn(monkeypatch):
     game.combat(room)
 
     assert calls["enemy_attacks"] == 0
+
+
+def test_combat_use_prefix_typo_is_not_treated_as_use(monkeypatch):
+    game = punkkidoom.PunkkidoomGame()
+    room = game.rooms[game.player.location]
+    room.enemies = [punkkidoom.Enemy("Dummy", 30, (1, 1), 100, 0, "")]
+
+    calls = {"enemy_attacks": 0}
+
+    def fake_attack(_player):
+        calls["enemy_attacks"] += 1
+        return False, 0, "dummy miss"
+
+    room.enemies[0].attack = fake_attack
+
+    inputs = iter(["usee testi", "quit"])
+    monkeypatch.setattr(builtins, "input", lambda _prompt: next(inputs))
+
+    game.combat(room)
+
+    assert calls["enemy_attacks"] == 0
