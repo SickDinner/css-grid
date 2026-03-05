@@ -696,8 +696,8 @@ class PunkkidoomGame:
         elif cmd == "use":
             if not arg:
                 self.log("Mitä ainetta vedät?")
-            else:
-                self.consume_drug(arg)
+            elif self.consume_drug(arg):
+                self.end_turn()
         elif cmd in {"rest", "wait"}:
             self.log("Hengität syvään neon-höyryjä.")
             self.end_turn()
@@ -745,14 +745,12 @@ class PunkkidoomGame:
         for line in commands:
             self.log(line)
 
-    def consume_drug(self, name: str, consume_turn: bool = True) -> bool:
+    def consume_drug(self, name: str) -> bool:
         for i, drug in enumerate(self.player.drugs):
             if drug.name.lower().startswith(name.lower()):
                 self.player.drugs.pop(i)
                 for msg in drug.use(self.player, self.messages):
                     self.log(msg)
-                if consume_turn:
-                    self.end_turn()
                 return True
         self.log(f"Et löydä mitään nimeltään {name}.")
         return False
@@ -851,7 +849,7 @@ class PunkkidoomGame:
                 if not rest:
                     self.log("Mitä vedät?")
                     continue
-                if not self.consume_drug(rest, consume_turn=False):
+                if not self.consume_drug(rest):
                     continue
             elif command == "status":
                 self.log(self.player.status_block())
