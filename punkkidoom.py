@@ -662,14 +662,18 @@ class PunkkidoomGame:
 
     # ------------------- Komennot ------------------- #
 
+    def parse_command(self, raw: str) -> Tuple[str, str]:
+        parts = raw.strip().split(maxsplit=1)
+        action = parts[0].lower()
+        arg = parts[1].strip() if len(parts) > 1 else ""
+        return action, arg
+
     def handle_command(self, raw: str) -> None:
         if not raw.strip():
             self.log("... seisot hetken hiljaa.")
             self.end_turn()
             return
-        cmd, *rest = raw.strip().split()
-        cmd = cmd.lower()
-        arg = " ".join(rest)
+        cmd, arg = self.parse_command(raw)
         if cmd in {"north", "n"}:
             self.move((0, 1))
         elif cmd in {"south", "s"}:
@@ -810,9 +814,7 @@ class PunkkidoomGame:
             command = input("taistelu> ").strip().lower()
             if not command:
                 command = "blast"
-            parts = command.split(maxsplit=1)
-            action = parts[0]
-            arg = parts[1].strip() if len(parts) > 1 else ""
+            action, arg = self.parse_command(command)
             if action in {"blast", "shoot"}:
                 self.player.guard_timer = 0
                 target = room.alive_enemies()[0]

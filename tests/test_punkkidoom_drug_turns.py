@@ -78,3 +78,22 @@ def test_combat_use_with_extra_spaces_still_uses_drug(monkeypatch):
     _run_combat_inputs(monkeypatch, game, ["use   testi", "quit"])
 
     assert calls["enemy_attacks"] == 1
+
+
+def test_handle_command_use_with_extra_spaces_consumes_turn():
+    game = punkkidoom.PunkkidoomGame()
+    start_turn = game.turn
+
+    game.player.drugs = [punkkidoom.Drug("Testi", "", 0, 0, 0, 0, 0, 0)]
+    game.handle_command("use    testi")
+
+    assert game.turn == start_turn + 1
+
+
+def test_handle_command_use_with_only_spaces_in_arg_does_not_consume_turn():
+    game = punkkidoom.PunkkidoomGame()
+    start_turn = game.turn
+
+    game.handle_command("use    ")
+
+    assert game.turn == start_turn
