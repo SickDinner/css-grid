@@ -745,15 +745,17 @@ class PunkkidoomGame:
         for line in commands:
             self.log(line)
 
-    def consume_drug(self, name: str) -> None:
+    def consume_drug(self, name: str, consume_turn: bool = True) -> bool:
         for i, drug in enumerate(self.player.drugs):
             if drug.name.lower().startswith(name.lower()):
                 self.player.drugs.pop(i)
                 for msg in drug.use(self.player, self.messages):
                     self.log(msg)
-                self.end_turn()
-                return
+                if consume_turn:
+                    self.end_turn()
+                return True
         self.log(f"Et löydä mitään nimeltään {name}.")
+        return False
 
     def move(self, delta: Tuple[int, int]) -> None:
         new_pos = (self.player.location[0] + delta[0], self.player.location[1] + delta[1])
@@ -846,10 +848,11 @@ class PunkkidoomGame:
                 self.log(self.player.guard())
             elif command.startswith("use"):
                 _, _, rest = command.partition(" ")
-                if rest:
-                    self.consume_drug(rest)
-                else:
+                if not rest:
                     self.log("Mitä vedät?")
+                    continue
+                if not self.consume_drug(rest, consume_turn=False):
+                    continue
             elif command == "status":
                 self.log(self.player.status_block())
                 continue
