@@ -850,7 +850,6 @@ class PunkkidoomGame:
                     self.consume_drug(rest)
                 else:
                     self.log("Mitä vedät?")
-                continue
             elif command == "status":
                 self.log(self.player.status_block())
                 continue
