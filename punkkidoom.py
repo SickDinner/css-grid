@@ -810,7 +810,9 @@ class PunkkidoomGame:
             command = input("taistelu> ").strip().lower()
             if not command:
                 command = "blast"
-            action, _, arg = command.partition(" ")
+            parts = command.split(maxsplit=1)
+            action = parts[0]
+            arg = parts[1].strip() if len(parts) > 1 else ""
             if action in {"blast", "shoot"}:
                 self.player.guard_timer = 0
                 target = room.alive_enemies()[0]
